@@ -1,0 +1,8 @@
+{
+  "filters": {
+    "rent_min": 0,
+    "rent_max": 999999999,
+    "area_min": 0
+  },
+  "request_delay_sec": 2
+}
