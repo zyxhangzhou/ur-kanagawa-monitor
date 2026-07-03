@@ -1,11 +1,7 @@
 name: UR Kanagawa Monitor
 
 on:
-  schedule:
-    # 08:00 / 14:00 / 20:00 JST (UTC+9)
-    - cron: "0 23 * * *"   # 08:00 JST
-    - cron: "0 5 * * *"    # 14:00 JST
-    - cron: "0 11 * * *"   # 20:00 JST
+  # Triggered by cron-job.org at 08:00 / 14:00 / 20:00 JST (see README)
   workflow_dispatch:
 
 permissions:

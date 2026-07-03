@@ -1,13 +1,13 @@
 # UR 神奈川空室监控
 
-每天两次自动检查神奈川 UR 团地空房（2 间房及以上），有新房源时通过 Telegram 推送通知。
+每天 3 次自动检查神奈川 UR 团地空房（2 间房及以上），有新房源时通过 Telegram 推送通知。
 
 ## 筛选条件
 
 - **地区**：神奈川全县（所有子区域）
 - **户型**：2K / 2DK / 2LDK / 3K 及以上（不含 1R、1K、1DK、1LDK）
 - **近东京标记**：川崎、横滨北部等区域会在通知中带 ⭐
-- **频率**：每天 3 次（08:00 / 14:00 / 20:00 JST）
+- **频率**：每天 3 次（08:00 / 14:00 / 20:00 JST），由 [cron-job.org](https://cron-job.org) 免费触发
 
 ## 部署步骤
 
@@ -23,19 +23,7 @@
 2. 浏览器打开：`https://api.telegram.org/bot<你的TOKEN>/getUpdates`
 3. 在返回 JSON 里找到 `"chat":{"id":123456789}`，记下这个数字
 
-### 3. 推送到 GitHub
-
-```bash
-cd ur-kanagawa-monitor
-git init
-git add .
-git commit -m "Initial commit: UR Kanagawa monitor"
-# 在 GitHub 新建仓库后：
-git remote add origin https://github.com/<你的用户名>/ur-kanagawa-monitor.git
-git push -u origin main
-```
-
-### 4. 配置 Secrets
+### 3. 配置 GitHub Secrets
 
 在 GitHub 仓库 → **Settings** → **Secrets and variables** → **Actions** 中添加：
 
@@ -44,12 +32,57 @@ git push -u origin main
 | `TELEGRAM_BOT_TOKEN` | Bot Token |
 | `TELEGRAM_CHAT_ID` | 你的 Chat ID |
 
-### 5. 启用 Actions
+### 4. 配置 cron-job.org 定时触发（免费）
 
-仓库 → **Actions** → 启用 workflows。可手动点 **Run workflow** 测试。
+GitHub 内置 cron 延迟可达数小时，因此改用 **cron-job.org** 在指定 JST 时间触发 workflow。
+
+#### 4.1 创建 GitHub Personal Access Token
+
+1. 打开 [GitHub → Settings → Developer settings → Personal access tokens](https://github.com/settings/tokens)
+2. **Generate new token (classic)** 或 Fine-grained token
+3. 权限至少包含：**repo**（classic）或 **Actions: Read and write**（fine-grained，仅限本仓库）
+4. 生成后复制 Token（只显示一次）
+
+#### 4.2 注册 cron-job.org
+
+1. 打开 [https://cron-job.org](https://cron-job.org) 注册免费账号
+2. 进入 **Cronjobs** → **Create cronjob**
+
+#### 4.3 创建 3 个定时任务
+
+每个任务配置相同，只有 **Schedule** 时间不同：
+
+| 字段 | 值 |
+|------|-----|
+| Title | `UR Monitor 08:00`（14:00 / 20:00 各建一个） |
+| URL | `https://api.github.com/repos/zyxhangzhou/ur-kanagawa-monitor/actions/workflows/monitor.yml/dispatches` |
+| Schedule | 自定义 → 时区选 **Asia/Tokyo** → 分别设为 `08:00`、`14:00`、`20:00` 每天 |
+| Request method | **POST** |
+| Request body | `{"ref":"main"}` |
+| Headers | 见下方 |
+
+**Headers（两个都要加）：**
+
+| Header | Value |
+|--------|-------|
+| `Authorization` | `Bearer <你的GitHub PAT>` |
+| `Accept` | `application/vnd.github+json` |
+| `X-GitHub-Api-Version` | `2022-11-28` |
+| `Content-Type` | `application/json` |
+
+> cron-job.org 免费版足够个人使用（每天 3 次远低于限额）。
+
+#### 4.4 验证
+
+1. 在 cron-job.org 点 **Run now** 测试
+2. 到 GitHub **Actions** 页面，应看到新的 workflow run
+3. 首次运行建立基线，通常不发 Telegram；第二次起才推送新空房
+
+### 5. 手动测试
+
+仓库 → **Actions** → **UR Kanagawa Monitor** → **Run workflow**
 
 > **首次运行**会建立基线快照，通常不会发通知。从第二次开始，只有**新出现的空房**才会推送。
-
 ## 本地测试
 
 ```bash
@@ -65,5 +98,5 @@ python monitor.py
 ## 注意
 
 - 仅供个人选房参考，请礼貌使用 UR 接口（默认每区域间隔 2 秒）
-- GitHub Actions 定时任务可能有 ±15 分钟延迟
+- GitHub PAT 和 Telegram Token 只存在 cron-job.org / GitHub Secrets，不要提交到仓库
 - 数据以 [UR 官网](https://www.ur-net.go.jp/chintai/kanto/kanagawa/list/) 为准
